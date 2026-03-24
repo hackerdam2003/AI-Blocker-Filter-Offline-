@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI-Blocker Image Filter</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1e1e1e;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background-color: #2d2d2d;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            max-width: 600px;
+            text-align: center;
+        }
+        input[type="file"] {
+            margin: 20px 0;
+            padding: 10px;
+            background: #3d3d3d;
+            border-radius: 5px;
+            color: white;
+        }
+        .controls {
+            margin: 15px 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        input[type="range"] {
+            flex-grow: 1;
+            margin: 0 15px;
+        }
+        canvas {
+            max-width: 100%;
+            height: auto;
+            margin-top: 15px;
+            border: 2px dashed #555;
+            border-radius: 5px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 15px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>AI-Blocker Filter (Offline)</h2>
+        <p>Ye tool image me subtle adversarial noise add karta hai taaki AI models ise theek se process na kar payein.</p>
+        
+        <input type="file" id="imageUpload" accept="image/*">
+        
+        <div class="controls">
+            <label for="noiseLevel">Protection Level:</label>
+            <input type="range" id="noiseLevel" min="5" max="50" value="15">
+            <span id="noiseValue">15</span>
+        </div>
+
+        <button id="downloadBtn" style="display:none;">Download Protected Image</button>
+
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <script>
+        const imageUpload = document.getElementById('imageUpload');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const noiseLevelSlider = document.getElementById('noiseLevel');
+        const noiseValue = document.getElementById('noiseValue');
+        const downloadBtn = document.getElementById('downloadBtn');
+
+        let originalImage = new Image();
+
+        // Image upload handle karna
+        imageUpload.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                originalImage.onload = function() {
+                    applyFilter();
+                    downloadBtn.style.display = 'inline-block';
+                }
+                originalImage.src = event.target.result;
+            }
+            reader.readAsDataURL(file);
+        });
+
+        // Slider value update
+        noiseLevelSlider.addEventListener('input', function() {
+            noiseValue.innerText = this.value;
+            if (originalImage.src) {
+                applyFilter();
+            }
+        });
+
+        // Noise add karne ka function
+        function applyFilter() {
+            // Set canvas size to original image size
+            canvas.width = originalImage.width;
+            canvas.height = originalImage.height;
+
+            // Draw original image
+            ctx.drawImage(originalImage, 0, 0);
+
+            // Get pixel data
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+            const noiseAmount = parseInt(noiseLevelSlider.value);
+
+            // Loop through all pixels (4 array items per pixel: R, G, B, Alpha)
+            for (let i = 0; i < data.length; i += 4) {
+                // Generate random noise for each channel
+                // We shift the math slightly to create patterns AI struggles with
+                let noiseR = (Math.random() - 0.5) * noiseAmount * 2;
+                let noiseG = (Math.random() - 0.5) * noiseAmount * 2;
+                let noiseB = (Math.random() - 0.5) * noiseAmount * 2;
+
+                // Add noise and ensure values stay between 0 and 255
+                data[i]     = Math.min(255, Math.max(0, data[i] + noiseR));     // Red
+                data[i + 1] = Math.min(255, Math.max(0, data[i + 1] + noiseG)); // Green
+                data[i + 2] = Math.min(255, Math.max(0, data[i + 2] + noiseB)); // Blue
+                // Alpha (data[i + 3]) ko change nahi karenge
+            }
+
+            // Put modified data back on canvas
+            ctx.putImageData(imageData, 0, 0);
+        }
+
+        // Image download functionality
+        downloadBtn.addEventListener('click', function() {
+            const link = document.createElement('a');
+            link.download = 'ai-protected-image.png';
+            link.href = canvas.toDataURL('image/png', 1.0); // High quality PNG
+            link.click();
+        });
+    </script>
+</body>
+</html>
